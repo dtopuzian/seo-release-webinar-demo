@@ -74,9 +74,9 @@ def main(argv=None):
             result = execute("client.py", ["status" if args.action == "notify" else args.action], secured)
     except (OSError, ValueError, subprocess.SubprocessError):
         print("Demo operation could not be verified.", file=sys.stderr)
-    if args.action == "notify":
-        # A failed fresh status still reaches the explicit unconfirmed notice.
-        # SSH secrets/files are absent from this process's environment.
+    if args.action == "notify" and result == 0:
+        # Only a successful fresh status may reach the notification decision.
+        # SSH errors remain failures without requiring Telegram credentials.
         notification = {**child, **{key: environment.get(key, "")
                                    for key in ("DEMO_TELEGRAM_TOKEN", "DEMO_TELEGRAM_CHAT")}}
         try:
@@ -84,7 +84,7 @@ def main(argv=None):
         except (OSError, ValueError, subprocess.SubprocessError):
             print("Telegram notification unavailable; release state is unchanged.", file=sys.stderr)
             notified = 1
-        return result if result != 0 else notified
+        return notified
     return result
 
 

@@ -1,4 +1,4 @@
-"""Send a bounded, honest demo result to the presenter, without polling."""
+"""Notify only a verified SEO stop for the current candidate, without polling."""
 import html
 import json
 import os
@@ -9,9 +9,9 @@ from urllib.error import URLError
 from urllib.request import Request, build_opener, ProxyHandler, HTTPRedirectHandler
 
 try:
-    from .client import expected_binding, matches, report_url, unconfirmed, validated_result, workflow_url
+    from .client import BINDING_KEYS, expected_binding, report_url, unconfirmed, validated_result, workflow_url
 except ImportError:  # Direct `python ci/notify.py` invocation.
-    from client import expected_binding, matches, report_url, unconfirmed, validated_result, workflow_url
+    from client import BINDING_KEYS, expected_binding, report_url, unconfirmed, validated_result, workflow_url
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -36,27 +36,30 @@ def failure_reason(result):
 
 
 def message(result, scene):
-    if type(result) is not dict:
-        result = unconfirmed()
-    outcome = result.get("outcome") if result.get("verified") is True else "unconfirmed"
-    check_incomplete = (outcome == "error" and scene == "checked"
-                        and result.get("reason_codes") == ["check_incomplete"])
-    if outcome == "published":
-        rows = ["✅ Деплой выполнен."]
-    elif outcome == "blocked" or check_incomplete:
-        rows = ["⛔️ Деплой остановлен.", "Причина: " + failure_reason(result)]
-    else:
-        rows = ["⚠️ Деплой не подтверждён.", "Причина: не удалось подтвердить результат выпуска."]
+    if (type(result) is not dict or result.get("verified") is not True
+            or scene != "checked" or result.get("target") != scene
+            or result.get("variant") != "bad"):
+        return None
+    try:
+        expected = expected_binding(os.environ)
+        result = validated_result(result, expected, result.get("action"), result.get("exit_code"))
+    except (ValueError, TypeError):
+        return None
+    outcome = result["outcome"]
+    check_incomplete = outcome == "error" and result["reason_codes"] == ["check_incomplete"]
+    candidate = {key: result[key] for key in BINDING_KEYS}
+    if (outcome != "blocked" and not check_incomplete) or result["published"] == candidate:
+        return None
+    reason = "Не удалось завершить SEO-проверку." if check_incomplete else failure_reason(result)
+    rows = ["⛔️ Деплой остановлен.", "Причина: " + reason]
     run = result.get("run")
     pipeline = workflow_url(os.environ, run)
     links = []
     if pipeline is not None:
         links.append('Ссылка на run: <a href="' + html.escape(pipeline, quote=True) + '">Открыть запуск</a>')
-    if (outcome == "blocked" and matches(r"[1-9][0-9]{0,19}", run)
-            and result.get("target") == scene and scene in {"unsafe", "checked"}):
-        url = report_url(result.get("report_url"), run, scene)
-        if url is not None:
-            links.append('Ссылка на отчёт: <a href="' + html.escape(url, quote=True) + '">Открыть отчёт</a>')
+    url = report_url(result.get("report_url"), run, scene)
+    if url is not None:
+        links.append('Ссылка на отчёт: <a href="' + html.escape(url, quote=True) + '">Открыть отчёт</a>')
     if links:
         rows.append("\n".join(links))
     return "\n\n".join(rows)
@@ -79,11 +82,15 @@ def load_result():
 def main():
     try:
         result = load_result()
+        text = message(result, os.environ["DEMO_SCENE"])
+        if text is None:
+            print("No confirmed SEO stop to notify.")
+            return 0 if result.get("verified") is True else 2
         token = os.environ["DEMO_TELEGRAM_TOKEN"]
         chat = os.environ["DEMO_TELEGRAM_CHAT"]
         if not re.fullmatch(r"[0-9]+:[A-Za-z0-9_-]+", token) or not re.fullmatch(r"[1-9][0-9]*", chat):
             raise ValueError("invalid credentials")
-        data = json.dumps({"chat_id": int(chat), "text": message(result, os.environ["DEMO_SCENE"]),
+        data = json.dumps({"chat_id": int(chat), "text": text,
                            "parse_mode": "HTML", "link_preview_options": {"is_disabled": True}}).encode()
         request = Request("https://api.telegram.org/bot" + token + "/sendMessage", data=data,
                           headers={"Content-Type": "application/json"}, method="POST")

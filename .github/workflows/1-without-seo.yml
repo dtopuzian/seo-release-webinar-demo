@@ -8,7 +8,7 @@ concurrency:
   queue: max
   cancel-in-progress: false
 env:
-  DEMO_RUNTIME_SHA: 'd8f34a3f8457801f10c0397da98e97615bf5ddfd'
+  DEMO_RUNTIME_SHA: '2ab66dadf150c9e285e0df24553d33de495b4f29'
   DEMO_VARIANT: 'bad'
 jobs:
   release:
@@ -36,13 +36,3 @@ jobs:
           DEMO_SSH_KNOWN_HOSTS: ${{ secrets.DEMO_SSH_KNOWN_HOSTS }}
         run: |
           python3 -B ci/run.py release unsafe
-      - name: 'Telegram'
-        id: notify
-        if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
-        env:
-          DEMO_SSH_KEY: ${{ secrets.DEMO_SSH_KEY }}
-          DEMO_SSH_KNOWN_HOSTS: ${{ secrets.DEMO_SSH_KNOWN_HOSTS }}
-          DEMO_TELEGRAM_TOKEN: ${{ secrets.DEMO_TELEGRAM_TOKEN }}
-          DEMO_TELEGRAM_CHAT: ${{ secrets.DEMO_TELEGRAM_CHAT }}
-        run: |
-          python3 -B ci/run.py notify unsafe
