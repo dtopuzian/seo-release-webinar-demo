@@ -45,7 +45,7 @@ jobs:
           python3 -B ci/run.py release checked
       - name: 'Telegram'
         id: notify
-        if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.checkout.outcome == 'success' && steps.check.outcome == 'failure' && steps.publish.outcome != 'success' }}
         env:
           DEMO_SSH_KEY: ${{ secrets.DEMO_SSH_KEY }}
           DEMO_SSH_KNOWN_HOSTS: ${{ secrets.DEMO_SSH_KNOWN_HOSTS }}

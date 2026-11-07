@@ -36,13 +36,3 @@ jobs:
           DEMO_SSH_KNOWN_HOSTS: ${{ secrets.DEMO_SSH_KNOWN_HOSTS }}
         run: |
           python3 -B ci/run.py release unsafe
-      - name: 'Telegram'
-        id: notify
-        if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
-        env:
-          DEMO_SSH_KEY: ${{ secrets.DEMO_SSH_KEY }}
-          DEMO_SSH_KNOWN_HOSTS: ${{ secrets.DEMO_SSH_KNOWN_HOSTS }}
-          DEMO_TELEGRAM_TOKEN: ${{ secrets.DEMO_TELEGRAM_TOKEN }}
-          DEMO_TELEGRAM_CHAT: ${{ secrets.DEMO_TELEGRAM_CHAT }}
-        run: |
-          python3 -B ci/run.py notify unsafe

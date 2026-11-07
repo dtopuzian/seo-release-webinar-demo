@@ -210,7 +210,7 @@ class NotificationTests(unittest.TestCase):
         self.assertNotIn("✅", text)
         # Extra page findings and old live receipts do not lengthen the message.
         value["checks"] += [{"path": f"/page{i}.html", "code": "unexpected_noindex", "passed": False} for i in range(19)]
-        value["published"] = {key: value[key] for key in client.BINDING_KEYS}
+        value["published"] = {**{key: value[key] for key in client.BINDING_KEYS}, "run": "999"}
         self.assertEqual(notify.message(value, "checked"), text)
 
     def test_http_and_incomplete_reasons_are_factual(self):
@@ -247,28 +247,30 @@ class NotificationTests(unittest.TestCase):
         self.assertIn("Не удалось завершить SEO-проверку.", text)
         self.assertNotIn("найден noindex", text)
 
-    def test_success_shows_only_run_link_and_no_report_or_version(self):
-        text = notify.message(self.verified("published"), "checked")
-        self.assertEqual(text, '✅ Деплой выполнен.\n\nСсылка на run: <a href="https://github.com/dtopuzian/seo-release-webinar-demo/actions/runs/12345">Открыть запуск</a>')
+    def test_published_or_current_candidate_live_never_claims_stopped(self):
+        self.assertIsNone(notify.message(self.verified("published"), "checked"))
+        for outcome in ("blocked", "error"):
+            raw = payload(outcome)
+            if outcome == "error":
+                raw["reason_codes"] = ["check_incomplete"]
+            raw["published"] = {key: raw[key] for key in client.BINDING_KEYS}
+            self.assertIsNone(notify.message(client.validated_result(raw, EXPECTED, "status", 0), "checked"))
 
     def test_none_and_invalid_urls_are_ignored_without_error(self):
-        invalid = [None, [], {}, 123, "https://evil.example/report.html",
+        invalid = [[], {}, 123, "https://evil.example/report.html",
                    client.ORIGIN + "/_reports/12345/checked/../unsafe/report.html",
                    client.ORIGIN + "/_reports/999/checked/report.html",
                    client.ORIGIN + "/_reports/12345/checked/report.html?token=PRIVATE"]
         for url in invalid:
-            with self.subTest(url=url), patch.dict(os.environ, {"GITHUB_SERVER_URL": "https://evil.example/"}):
-                text = notify.message({**self.verified(), "report_url": url}, "checked")
-                self.assertNotIn("Открыть отчёт", text)
-                self.assertNotIn("Открыть запуск", text)
-                self.assertNotIn("PRIVATE", text)
+            with self.subTest(url=url):
+                self.assertIsNone(notify.message({**self.verified(), "report_url": url}, "checked"))
+        text = notify.message({**self.verified(), "report_url": None}, "checked")
+        self.assertIn("Открыть запуск", text)
+        self.assertNotIn("Открыть отчёт", text)
 
     def test_unverified_success_has_no_success_heading_or_report(self):
         value = {**payload("published"), "verified": False}
-        text = notify.message(value, "checked")
-        self.assertIn("Деплой не подтверждён", text)
-        self.assertNotIn("✅", text)
-        self.assertNotIn("Открыть отчёт", text)
+        self.assertIsNone(notify.message(value, "checked"))
 
     def test_github_link_binds_exact_repository_and_current_run(self):
         value = self.verified()
@@ -276,27 +278,70 @@ class NotificationTests(unittest.TestCase):
                       notify.message(value, "checked"))
         for change in ({"GITHUB_REPOSITORY": "other/repository"}, {"GITHUB_RUN_ID": "999"}):
             with patch.dict(os.environ, change):
-                self.assertNotIn("Открыть запуск", notify.message(value, "checked"))
+                self.assertIsNone(notify.message(value, "checked"))
 
-    def test_stale_or_missing_receipt_sends_safe_unconfirmed_notice_only(self):
+    def invoke(self, value, credentials=False, reply=b'{"ok":true}'):
         response = MagicMock()
-        response.__enter__.return_value.read.return_value = b'{"ok":true}'
+        response.__enter__.return_value.read.return_value = reply
         opener = MagicMock()
         opener.open.return_value = response
-        stale = {**self.verified("published"), "source_sha": "c" * 40}
-        with patch.object(notify.Path, "read_bytes", return_value=json.dumps(stale).encode()), \
-                patch.dict(os.environ, {"DEMO_TELEGRAM_TOKEN": "123:TEST_ONLY_TOKEN", "DEMO_TELEGRAM_CHAT": "456"}), \
-                patch.object(notify, "build_opener", return_value=opener), redirect_stdout(io.StringIO()):
-            self.assertEqual(notify.main(), 0)
+        secret_values = {"DEMO_TELEGRAM_TOKEN": "123:TEST_ONLY_TOKEN", "DEMO_TELEGRAM_CHAT": "456"} if credentials else {}
+        output = io.StringIO()
+        with patch.object(notify.Path, "read_bytes", return_value=json.dumps(value).encode()), \
+                patch.dict(os.environ, secret_values), patch.object(notify, "build_opener", return_value=opener), \
+                redirect_stdout(output), redirect_stderr(output):
+            code = notify.main()
+        self.assertNotIn("TEST_ONLY_TOKEN", output.getvalue())
+        return code, opener
+
+    def test_silent_receipt_matrix_needs_no_secrets_or_telegram_calls(self):
+        cases = [(self.verified(outcome), 0) for outcome in ("prepared", "checked", "published", "error")]
+        cases += [(client.unconfirmed(EXPECTED), 2), ({**self.verified(), "verified": False}, 2)]
+        for key, value in (("source_sha", "c" * 40), ("run", "999"), ("target", "unsafe"), ("digest", "f" * 64)):
+            cases.append(({**self.verified(), key: value}, 2))
+        for raw, expected_code in cases:
+            with self.subTest(outcome=raw["outcome"], verified=raw["verified"]):
+                code, opener = self.invoke(raw)
+                self.assertEqual(code, expected_code)
+                opener.open.assert_not_called()
+
+    def test_reset_and_unsafe_need_no_telegram_even_for_blocked_receipt(self):
+        for target, variant in (("checked", "good"), ("unsafe", "good"), ("unsafe", "bad")):
+            with self.subTest(target=target, variant=variant), patch.dict(os.environ, {"DEMO_SCENE": target, "DEMO_VARIANT": variant}):
+                expected = client.expected_binding(os.environ)
+                value = client.validated_result(payload("blocked", target, variant), expected, "status", 0)
+                code, opener = self.invoke(value)
+                self.assertEqual(code, 0)
+                opener.open.assert_not_called()
+
+    def test_confirmed_stop_sends_short_html_and_failure_is_visible(self):
+        code, opener = self.invoke(self.verified(), credentials=True)
+        self.assertEqual(code, 0)
+        self.assertEqual(opener.open.call_count, 1)
         request = opener.open.call_args.args[0]
         data = json.loads(request.data)
         self.assertEqual(data["parse_mode"], "HTML")
-        text = data["text"]
-        self.assertIn("Деплой не подтверждён", text)
-        self.assertNotIn("✅", text)
-        self.assertNotIn("TEST_ONLY_TOKEN", text)
-        with patch.object(notify.Path, "read_bytes", side_effect=FileNotFoundError("PRIVATE_PATH")):
-            self.assertFalse(notify.load_result()["verified"])
+        self.assertEqual(data["text"], notify.message(self.verified(), "checked"))
+        self.assertEqual(self.invoke(self.verified(), credentials=True, reply=b'{"ok":false}')[0], 1)
+        self.assertEqual(self.invoke(self.verified(), credentials=False)[0], 1)
+
+    def test_check_incomplete_notifies_with_report_only_when_present(self):
+        for report in (None, payload()["report_url"]):
+            raw = {**payload("error"), "reason_codes": ["check_incomplete"], "report_url": report}
+            value = client.validated_result(raw, EXPECTED, "status", 0)
+            code, opener = self.invoke(value, credentials=True)
+            self.assertEqual(code, 0)
+            text = json.loads(opener.open.call_args.args[0].data)["text"]
+            self.assertIn("Причина: Не удалось завершить SEO-проверку.", text)
+            self.assertEqual("Открыть отчёт" in text, report is not None)
+
+    def test_missing_or_malformed_receipt_is_silent_failure(self):
+        for arguments in ({"side_effect": FileNotFoundError("PRIVATE_PATH")},
+                          {"return_value": b'PRIVATE_NON_JSON'}, {"return_value": b'x' * 65537}):
+            with self.subTest(arguments=tuple(arguments)), patch.object(notify.Path, "read_bytes", **arguments), \
+                    patch.object(notify, "build_opener") as opener, redirect_stdout(io.StringIO()):
+                self.assertEqual(notify.main(), 2)
+                opener.assert_not_called()
 
 
 class SecretWrapperTests(unittest.TestCase):
@@ -333,26 +378,22 @@ class SecretWrapperTests(unittest.TestCase):
         self.assertEqual(self.invoke("prepare", execute)[0], 0)
         self.assertTrue(all(not path.exists() for path in paths))
 
-    def test_credential_failure_revokes_stale_receipt_and_still_notifies_unconfirmed(self):
+    def test_credential_failure_revokes_stale_receipt_without_notification(self):
         client.save_result({**payload("published"), "verified": True})
-        def execute(script, arguments, environment):
-            self.assertEqual(script, "notify.py")
-            self.assertNotIn("DEMO_SSH_KEY", environment)
-            self.assertNotIn("DEMO_SSH_KEY_FILE", environment)
-            receipt = json.loads(client.RESULT_FILE.read_text())
-            self.assertFalse(receipt["verified"])
-            self.assertEqual(receipt["outcome"], "unconfirmed")
-            return 0
         with patch.dict(os.environ, {"DEMO_SSH_KEY": ""}):
-            code, child = self.invoke("notify", execute)
+            code, child = self.invoke("notify", [])
         self.assertEqual(code, 2)
-        self.assertEqual(child.call_count, 1)
+        child.assert_not_called()
+        receipt = json.loads(client.RESULT_FILE.read_text())
+        self.assertFalse(receipt["verified"])
+        self.assertEqual(receipt["outcome"], "unconfirmed")
 
-    def test_failed_status_does_not_skip_notification_and_blocked_exit_stays_failed(self):
+    def test_failed_status_skips_notification_and_blocked_exit_stays_failed(self):
         for status, notified in ((2, 0), (0, 1), (0, 0)):
             with self.subTest(status=status, notified=notified):
                 code, child = self.invoke("notify", [status, notified])
-                self.assertEqual([call.args[0] for call in child.call_args_list], ["client.py", "notify.py"])
+                self.assertEqual([call.args[0] for call in child.call_args_list],
+                                 ["client.py", "notify.py"] if status == 0 else ["client.py"])
                 self.assertEqual(code == 0, status == 0 and notified == 0)
         self.assertEqual(self.invoke("check", [10])[0], 10)
 
@@ -380,7 +421,8 @@ class WorkflowTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         root = Path(__file__).parents[1] / ".github/workflows"
-        cls.workflows = {path.name: path.read_text(encoding="utf-8") for path in root.glob("*.yml")}
+        cls.workflows = {path.name: path.read_text(encoding="utf-8") for path in root.glob("[123]-*.yml")}
+        cls.test_workflow = (root / "tests.yml").read_text(encoding="utf-8")
 
     def step(self, text, name):
         match = re.search(r"^      - name: [^\n]*\n        id: " + re.escape(name) + r"\n((?:[ ]{8}.*\n|\n)*)", text, re.MULTILINE)
@@ -389,7 +431,7 @@ class WorkflowTests(unittest.TestCase):
 
     def test_scenario_names_short_steps_and_reset_without_telegram(self):
         expected = {
-            "1-without-seo.yml": ("1. Выпустить без SEO-проверки", ["Подготовка", "Публикация", "Telegram"]),
+            "1-without-seo.yml": ("1. Выпустить без SEO-проверки", ["Подготовка", "Публикация"]),
             "2-with-seo.yml": ("2. Выпустить с SEO-проверкой", ["Подготовка", "SEO-проверка", "Публикация", "Telegram"]),
             "3-reset.yml": ("3. Вернуть обе витрины к v1", ["Подготовка", "SEO-проверка", "Публикация", "Результат"]),
         }
@@ -397,8 +439,9 @@ class WorkflowTests(unittest.TestCase):
             text = self.workflows[filename]
             self.assertEqual(text.splitlines()[0], f"name: '{title}'")
             self.assertEqual(re.findall(r"^      - name: '([^']+)'$", text, re.MULTILINE), steps)
-        self.assertNotIn("DEMO_TELEGRAM", self.workflows["3-reset.yml"])
-        self.assertNotIn("ci/run.py notify", self.workflows["3-reset.yml"])
+        for filename in ("1-without-seo.yml", "3-reset.yml"):
+            self.assertNotIn("DEMO_TELEGRAM", self.workflows[filename])
+            self.assertNotIn("ci/run.py notify", self.workflows[filename])
 
     def test_manual_workflows_share_queue_with_one_pinned_checkout_and_one_job(self):
         self.assertEqual(len(self.workflows), 3)
@@ -422,7 +465,6 @@ class WorkflowTests(unittest.TestCase):
     def test_failed_steps_skip_publish_and_final_step_requires_checkout_without_cancellation(self):
         final_condition = "if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}"
         for name, text in self.workflows.items():
-            final = "status" if name == "3-reset.yml" else "notify"
             # Ordinary steps retain GitHub's default success() condition. Only the
             # final status/notification runs after failure, never after checkout
             # failure or cancellation. No local Actions expression interpreter.
@@ -433,11 +475,24 @@ class WorkflowTests(unittest.TestCase):
                 self.assertNotIn("if:", check)
                 self.assertNotIn("||", check)
                 self.assertLess(text.index("id: check"), text.index("id: publish"))
-            self.assertIn(final_condition, self.step(text, final))
+            if name == "3-reset.yml":
+                self.assertIn(final_condition, self.step(text, "status"))
+            elif name == "2-with-seo.yml":
+                self.assertIn("if: ${{ !cancelled() && steps.checkout.outcome == 'success' && steps.check.outcome == 'failure' && steps.publish.outcome != 'success' }}", self.step(text, "notify"))
             self.assertNotIn("always()", text)
         self.assertNotIn("id: check\n", self.workflows["1-without-seo.yml"])
         self.assertIn("ci/run.py check unsafe", self.workflows["3-reset.yml"])
         self.assertIn("ci/run.py check checked", self.workflows["3-reset.yml"])
+
+    def test_pr_checks_have_no_secrets_or_deployment(self):
+        text = self.test_workflow
+        self.assertIn("  pull_request:\n", text)
+        self.assertIn("  push:\n    branches: [main]\n", text)
+        self.assertIn("permissions:\n  contents: read\n", text)
+        self.assertIn("python3 -I -B -m unittest discover -s tests -v", text)
+        self.assertNotIn("secrets.", text)
+        self.assertNotIn("ci/run.py", text)
+        self.assertNotIn("pull_request_target", text)
 
     def test_real_reset_shell_reads_both_scenes_even_when_first_fails(self):
         shell = shutil.which("sh")
