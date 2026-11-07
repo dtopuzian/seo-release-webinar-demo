@@ -1,0 +1,62 @@
+name: '1. Выпустить без SEO-проверки'
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: webinar-demo
+  queue: max
+  cancel-in-progress: false
+env:
+  DEMO_RUNTIME_SHA: '2559b7978fd5bf49c4b9b18b18840d30992eb675'
+  DEMO_VARIANT: 'bad'
+jobs:
+  prepare:
+    name: 'Подготовить версию v2'
+    if: ${{ github.repository == 'dtopuzian/seo-release-webinar-demo' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: 'Выполнить операцию'
+        env:
+          DEMO_SSH_KEY: ${{ secrets.DEMO_SSH_KEY }}
+          DEMO_SSH_KNOWN_HOSTS: ${{ secrets.DEMO_SSH_KNOWN_HOSTS }}
+        run: |
+          python3 -B ci/run.py prepare unsafe
+  publish:
+    name: 'Опубликовать v2'
+    needs: [prepare]
+    if: ${{ github.repository == 'dtopuzian/seo-release-webinar-demo' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: 'Выполнить операцию'
+        env:
+          DEMO_SSH_KEY: ${{ secrets.DEMO_SSH_KEY }}
+          DEMO_SSH_KNOWN_HOSTS: ${{ secrets.DEMO_SSH_KNOWN_HOSTS }}
+        run: |
+          python3 -B ci/run.py release unsafe
+  notify:
+    name: 'Сообщить в Telegram'
+    needs: [prepare, publish]
+    if: ${{ always() && github.repository == 'dtopuzian/seo-release-webinar-demo' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: 'Получить состояние и отправить сообщение'
+        env:
+          DEMO_SSH_KEY: ${{ secrets.DEMO_SSH_KEY }}
+          DEMO_SSH_KNOWN_HOSTS: ${{ secrets.DEMO_SSH_KNOWN_HOSTS }}
+          DEMO_TELEGRAM_TOKEN: ${{ secrets.DEMO_TELEGRAM_TOKEN }}
+          DEMO_TELEGRAM_CHAT: ${{ secrets.DEMO_TELEGRAM_CHAT }}
+        run: |
+          python3 -B ci/run.py notify unsafe

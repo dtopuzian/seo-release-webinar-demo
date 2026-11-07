@@ -1,0 +1,81 @@
+name: '3. Вернуть обе витрины к v1'
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: webinar-demo
+  queue: max
+  cancel-in-progress: false
+env:
+  DEMO_RUNTIME_SHA: '2559b7978fd5bf49c4b9b18b18840d30992eb675'
+  DEMO_VARIANT: 'good'
+jobs:
+  prepare:
+    name: 'Подготовить исходную версию'
+    if: ${{ github.repository == 'dtopuzian/seo-release-webinar-demo' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: 'Выполнить операцию'
+        env:
+          DEMO_SSH_KEY: ${{ secrets.DEMO_SSH_KEY }}
+          DEMO_SSH_KNOWN_HOSTS: ${{ secrets.DEMO_SSH_KNOWN_HOSTS }}
+        run: |
+          python3 -B ci/run.py prepare unsafe
+          python3 -B ci/run.py prepare checked
+  check:
+    name: 'Проверить SEO исходной версии'
+    needs: [prepare]
+    if: ${{ github.repository == 'dtopuzian/seo-release-webinar-demo' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: 'Выполнить операцию'
+        env:
+          DEMO_SSH_KEY: ${{ secrets.DEMO_SSH_KEY }}
+          DEMO_SSH_KNOWN_HOSTS: ${{ secrets.DEMO_SSH_KNOWN_HOSTS }}
+        run: |
+          python3 -B ci/run.py check checked
+  publish:
+    name: 'Вернуть обе витрины к v1'
+    needs: [prepare, check]
+    if: ${{ github.repository == 'dtopuzian/seo-release-webinar-demo' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: 'Выполнить операцию'
+        env:
+          DEMO_SSH_KEY: ${{ secrets.DEMO_SSH_KEY }}
+          DEMO_SSH_KNOWN_HOSTS: ${{ secrets.DEMO_SSH_KNOWN_HOSTS }}
+        run: |
+          python3 -B ci/run.py release unsafe
+          python3 -B ci/run.py release checked
+  status:
+    name: 'Подтвердить состояние каждой витрины'
+    needs: [prepare, check, publish]
+    if: ${{ always() && github.repository == 'dtopuzian/seo-release-webinar-demo' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: 'Получить состояние обеих витрин'
+        env:
+          DEMO_SSH_KEY: ${{ secrets.DEMO_SSH_KEY }}
+          DEMO_SSH_KNOWN_HOSTS: ${{ secrets.DEMO_SSH_KNOWN_HOSTS }}
+        run: |
+          result=0
+          python3 -B ci/run.py status unsafe || result=1
+          python3 -B ci/run.py status checked || result=1
+          exit "$result"

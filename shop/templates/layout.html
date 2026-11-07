@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{TITLE}}</title>
+  <meta name="description" content="{{DESCRIPTION}}">
+  <meta name="robots" content="{{ROBOTS}}">
+  <meta name="theme-color" content="#f6f3ed">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/style.css">
+  <script src="assets/shop.js" defer></script>
+</head>
+<body data-section="{{SECTION}}">
+  <a class="skip-link" href="#main">К содержимому</a>
+  <div class="demo-strip"><span>Учебная витрина · заказы и оплата недоступны</span><span class="release">Версия <b data-release-version>{{VERSION}}</b></span></div>
+  <header class="site-header wrap">
+    <a class="brand" href="index.html" aria-label="СЛОЙ — главная">СЛОЙ<span class="brand-dot">®</span></a>
+    <nav aria-label="Основная навигация">
+      <a href="catalog.html"{{CATALOG_CURRENT}}>Коллекция</a><a href="about.html"{{ABOUT_CURRENT}}>Наш подход</a>
+    </nav>
+    <button class="cart-trigger" type="button" data-open-cart aria-label="Открыть корзину"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14l1 14H4L5 7Zm3 0V5a4 4 0 0 1 8 0v2"/></svg><span>Корзина</span><span class="cart-count" data-cart-count>0</span></button>
+  </header>
+  <main id="main">{{CONTENT}}</main>
+  <footer class="site-footer">
+    <div class="wrap footer-top"><div><a class="brand" href="index.html">СЛОЙ<span class="brand-dot">®</span></a><p>Пространство для жизни.<br>Предметы, которые остаются.</p></div><div class="footer-links"><a href="catalog.html">Смотреть коллекцию ↗</a><a href="about.html">О нашем подходе ↗</a><a href="cart.html">Моя подборка ↗</a></div><p class="footer-note">Вымышленный бренд для учебной демонстрации.<br>Цены и характеристики условные.<br>Мы не принимаем заказы и не собираем контакты.</p></div>
+    <div class="wrap footer-bottom"><span>© СЛОЙ, 2026</span><span>Сделано для тихих моментов</span><span>Демонстрационная витрина</span></div>
+  </footer>
+  <dialog class="cart-dialog" aria-labelledby="cart-title">
+    <div class="drawer-header"><div><span class="eyebrow">Ваша подборка</span><h2 id="cart-title">Корзина <span data-cart-count>0</span></h2></div><button class="icon-button" type="button" data-close-cart aria-label="Закрыть корзину">×</button></div>
+    <div class="cart-lines" data-cart-items></div>
+    <div class="cart-bottom"><div class="cart-total"><span>Итого</span><strong data-cart-total>0 ₽</strong></div><p>Это учебная витрина. Оформление и оплата недоступны.</p><a class="button dark" href="cart.html">Посмотреть подборку <span>↗</span></a><button class="text-button" type="button" data-close-cart>Продолжить выбирать</button></div>
+  </dialog>
+  <div class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+  <noscript><p class="noscript-note">Каталог доступен без JavaScript. Для добавления товаров в демонстрационную корзину включите JavaScript.</p></noscript>
+</body>
+</html>

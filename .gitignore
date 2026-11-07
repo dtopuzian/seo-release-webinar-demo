@@ -1,0 +1,9 @@
+__pycache__/
+*.py[cod]
+.work/
+.venv/
+demo-result.json
+*.key
+*.pem
+.env
+.env.*
