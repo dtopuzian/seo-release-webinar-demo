@@ -1,4 +1,4 @@
-"""Artifact contracts for the webinar storefront; standard library only."""
+"""Artifact contracts for the webinar landing pages; standard library only."""
 
 from __future__ import annotations
 
@@ -22,6 +22,7 @@ class Document(HTMLParser):
         super().__init__()
         self.references = []
         self.h1_count = 0
+        self.button_count = 0
         self.title = ""
         self.description = ""
         self.robots = ""
@@ -31,6 +32,7 @@ class Document(HTMLParser):
     def handle_starttag(self, tag, attrs):
         values = dict(attrs)
         self.h1_count += tag == "h1"
+        self.button_count += tag == "button"
         if tag == "title":
             self._in_title = True
         if tag == "meta":
@@ -51,7 +53,7 @@ class Document(HTMLParser):
             self.title += data
 
 
-class ShopArtifactTests(unittest.TestCase):
+class LandingArtifactTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
@@ -78,58 +80,54 @@ class ShopArtifactTests(unittest.TestCase):
             if path.is_file():
                 self.assertEqual(path.read_bytes(), (second / path.relative_to(self.good)).read_bytes())
 
-    def test_bad_release_changes_only_robots_and_visible_version(self):
-        important = {"index.html", "catalog.html", "aura.html", "tihaya.html", "krug.html", "liniya.html"}
-        self.assertEqual(set(self.bad_manifest["important_pages"]), important)
-        self.assertEqual(set(self.good_manifest["files"]), set(self.bad_manifest["files"]))
-        for name in self.good_manifest["files"]:
-            good = (self.good / name).read_bytes()
-            bad = (self.bad / name).read_bytes()
-            if name.endswith(".html"):
-                expected = good.replace(b"data-release-version>v1</b>", b"data-release-version>v2</b>")
-                if name in important:
+    def test_both_landing_variants_change_only_robots_and_visible_version(self):
+        for target in ("unsafe", "checked"):
+            good, bad = self.root / target / "good", self.root / target / "bad"
+            good_manifest = BUILDER.build("good", good, target)
+            bad_manifest = BUILDER.build("bad", bad, target)
+            self.assertEqual(bad_manifest["important_pages"], ["index.html"])
+            self.assertEqual(set(good_manifest["files"]), set(bad_manifest["files"]))
+            for name in good_manifest["files"]:
+                expected = (good / name).read_bytes()
+                if name == "index.html":
+                    expected = expected.replace(b"data-release-version>v1</b>", b"data-release-version>v2</b>")
                     expected = expected.replace(b'content="index,follow"', b'content="noindex,follow"')
-                self.assertEqual(expected, bad, name)
-                self.assertEqual(Document(bad.decode("utf-8")).robots,
-                                 "noindex,follow" if name in important else "index,follow")
-            else:
-                self.assertEqual(good, bad, name)
-        self.assertEqual((self.good / "robots.txt").read_bytes(), b"User-agent: *\nAllow: /\n")
-        self.assertNotEqual(self.good_manifest["artifact_sha256"], self.bad_manifest["artifact_sha256"])
+                    self.assertEqual(Document((bad / name).read_text(encoding="utf-8")).robots, "noindex,follow")
+                self.assertEqual(expected, (bad / name).read_bytes(), (target, name))
+            self.assertEqual((good / "robots.txt").read_bytes(), b"User-agent: *\nAllow: /\n")
+            self.assertNotEqual(good_manifest["artifact_sha256"], bad_manifest["artifact_sha256"])
 
-    def test_static_content_and_relative_links_work_at_both_mounts(self):
-        names = set(self.good_manifest["files"])
-        titles, descriptions = set(), set()
-        pages = {name: Document((self.good / name).read_text(encoding="utf-8"))
-                 for name in names if name.endswith(".html")}
-        self.assertEqual(len(pages), 8)
-        for name, document in pages.items():
-            self.assertEqual(document.h1_count, 1, name)
-            self.assertTrue(document.title.strip(), name)
-            self.assertTrue(document.description.strip(), name)
-            self.assertNotIn(document.title, titles, name)
-            self.assertNotIn(document.description, descriptions, name)
-            titles.add(document.title)
-            descriptions.add(document.description)
-            text = (self.good / name).read_text(encoding="utf-8")
+    def test_single_page_local_assets_at_both_mounts_and_distinct_sites(self):
+        documents, digests = [], []
+        for target, brand in (("unsafe", "Кот на удалёнке"), ("checked", "Гусь на связи")):
+            output = self.root / target
+            manifest = BUILDER.build("good", output, target)
+            names = set(manifest["files"])
+            self.assertEqual({name for name in names if name.endswith(".html")}, {"index.html"})
+            text = (output / "index.html").read_text(encoding="utf-8")
+            document = Document(text)
+            self.assertIn(brand, text)
+            self.assertEqual(document.h1_count, 1)
+            self.assertEqual(document.button_count, 1)
+            self.assertTrue(document.title.strip())
+            self.assertTrue(document.description.strip())
+            self.assertEqual(document.robots, "index,follow")
             self.assertNotRegex(text, r"\{\{[A-Z_]+\}\}")
             self.assertNotIn("<form", text)
+            self.assertIn('role="status"', text)
             for mount in ("/", "/checked/"):
                 for reference in document.references:
                     self.assertFalse(urlsplit(reference).scheme, reference)
                     self.assertFalse(reference.startswith("/"), reference)
-                    resolved = urlsplit(urljoin("https://shop.example" + mount + name, reference))
+                    resolved = urlsplit(urljoin("https://shop.example" + mount, reference))
                     self.assertEqual(resolved.netloc, "shop.example")
                     self.assertTrue(resolved.path.startswith(mount), reference)
                     self.assertIn(resolved.path[len(mount):], names, reference)
-        visited, pending = set(), ["index.html"]
-        while pending:
-            name = pending.pop()
-            if name in visited:
-                continue
-            visited.add(name)
-            pending.extend(reference for reference in pages[name].references if reference in pages)
-        self.assertEqual(visited, set(pages), "Every page must be discoverable from rendered HTML links")
+            self.assertFalse(any("cart" in name or "product" in name or "catalog" in name for name in names))
+            documents.append(text)
+            digests.append(manifest["artifact_sha256"])
+        self.assertNotEqual(*documents)
+        self.assertNotEqual(*digests)
 
     def test_builder_refuses_to_overwrite_an_artifact(self):
         before = (self.good / "manifest.json").read_bytes()
@@ -138,6 +136,8 @@ class ShopArtifactTests(unittest.TestCase):
         self.assertEqual((self.good / "manifest.json").read_bytes(), before)
         with self.assertRaises(ValueError):
             BUILDER.build("unknown", self.root / "unknown")
+        with self.assertRaises(ValueError):
+            BUILDER.build("good", self.root / "unknown", "other")
 
 
 if __name__ == "__main__":

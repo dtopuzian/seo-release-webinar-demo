@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the self-contained webinar shop; no network or product imports."""
+"""Build one self-contained webinar landing page without network access."""
 
 from __future__ import annotations
 
@@ -12,8 +12,32 @@ import re
 import sys
 
 
-SOURCE = Path(__file__).resolve().parent / "shop"
+SOURCE = Path(__file__).resolve().parent / "landing"
 VERSIONS = {"good": "v1", "bad": "v2"}
+SITES = {
+    "unsafe": {
+        "NUMBER": "01", "THEME": "cat", "NAME": "Кот на удалёнке",
+        "TITLE": "Кот на удалёнке — работаем лапками",
+        "DESCRIPTION": "Дедлайны подождут. Кот на удалёнке помогает сделать паузу, выдохнуть и вернуться к работе с мурчащим настроением.",
+        "EYEBROW": "Ваш самый пушистый коллега",
+        "HEADLINE": "Работаем лапками.<br>Отдыхаем с душой.",
+        "SUBTITLE": "Закрываем задачи. Открываем вкусняшки.<br>Главное, чтобы созвон не мешал тихому часу.",
+        "BUTTON": "Позвать на созвон", "REACTION": "Мяу. Кот уже на созвоне. Камеру не включит.",
+        "ASIDE": "На связи. Но это не точно.", "FOOTNOTE": "Всё под контролем. Особенно клавиатура.",
+        "IMAGE_ALT": "Рыжий кот в очках работает за ноутбуком рядом с чашкой кофе",
+    },
+    "checked": {
+        "NUMBER": "02", "THEME": "goose", "NAME": "Гусь на связи",
+        "TITLE": "Гусь на связи — слышно отлично, понятно не всё",
+        "DESCRIPTION": "Гусь на связи принимает важные звонки, поддерживает боевой настрой команды и всегда готов сказать уверенное га-га.",
+        "EYEBROW": "Поддержка с характером",
+        "HEADLINE": "Слышно отлично.<br>Понятно не всё.",
+        "SUBTITLE": "Если что-то пошло не так, зовите гуся.<br>Он выслушает. Кивнёт. И громко поддержит.",
+        "BUTTON": "Связаться с гусём", "REACTION": "Га-га! Ваш вопрос очень важен для нашего гуся.",
+        "ASIDE": "Готов к важному «га-га».", "FOOTNOTE": "Ни один созвон не останется без внимания.",
+        "IMAGE_ALT": "Белый гусь в жёлтой гарнитуре отвечает на звонок за рабочим столом",
+    },
+}
 
 
 def canonical_json(value: object) -> bytes:
@@ -21,7 +45,7 @@ def canonical_json(value: object) -> bytes:
 
 
 def artifact_digest(files: dict) -> str:
-    """SHA-256 of canonical JSON for the exact {path: {sha256, size}} map."""
+    """Bind the exact {path: {sha256, size}} map, not a mutable version label."""
     return hashlib.sha256(canonical_json(files)).hexdigest()
 
 
@@ -29,89 +53,37 @@ def render(template: str, **values: str) -> str:
     return re.sub(r"\{\{([A-Z_]+)\}\}", lambda match: values[match[1]], template)
 
 
-def read_template(name: str) -> str:
-    return (SOURCE / "templates" / name).read_text(encoding="utf-8")
-
-
-def money(amount: int) -> str:
-    return f"{amount:,}".replace(",", " ") + " ₽"
-
-
-def build(variant: str, output: Path) -> dict:
-    if variant not in VERSIONS:
-        raise ValueError("variant must be good or bad")
+def build(variant: str, output: Path, target: str = "unsafe") -> dict:
+    if variant not in VERSIONS or target not in SITES:
+        raise ValueError("variant must be good or bad; target must be unsafe or checked")
     output = output.resolve()
     if output.exists() and (not output.is_dir() or any(output.iterdir())):
         raise ValueError("output must be a new or empty directory; existing artifacts are never overwritten")
     if output == SOURCE or SOURCE in output.parents:
-        raise ValueError("output must not be inside the shop source directory")
+        raise ValueError("output must not be inside the landing source directory")
 
-    version = VERSIONS[variant]
-    products = json.loads((SOURCE / "products.json").read_text(encoding="utf-8"))
-    layout = read_template("layout.html")
-    card_template = read_template("card.html")
-    cards = []
-    for product in products:
-        cards.append(render(card_template, ID=product["id"], NAME=html.escape(product["name"]),
-                            TYPE=html.escape(product["type"]), MATERIAL=html.escape(product["material"]),
-                            PRICE=money(product["price"]), COLOR=product["color"],
-                            LABEL=html.escape(product["label"])))
-    all_cards = "\n".join(cards)
-    pages = {
-        "index.html": ("СЛОЙ — предметы для дома, в котором хочется остаться",
-                       "Свет, керамика и текстиль СЛОЙ. Небольшая коллекция выразительных предметов для спокойного, тёплого дома. Учебная витрина.",
-                       render(read_template("index.html"), CARDS=all_cards), True, "home"),
-        "catalog.html": ("Коллекция предметов для дома — СЛОЙ",
-                         "Настольная лампа, керамическая ваза, поднос и мягкий плед. Рассмотрите материалы, оттенки и детали коллекции СЛОЙ.",
-                         render(read_template("catalog.html"), CARDS=all_cards), True, "catalog"),
-        "about.html": ("О подходе СЛОЙ — меньше вещей, больше смысла",
-                       "История учебного бренда СЛОЙ: натуральные оттенки, простые формы и внимание к повседневным ритуалам дома.",
-                       read_template("about.html"), False, "about"),
-        "cart.html": ("Ваша корзина — СЛОЙ",
-                      "Соберите свою подборку предметов СЛОЙ: измените количество и посмотрите итог. Демонстрационная корзина без оформления заказа и оплаты.",
-                      read_template("cart.html"), False, "cart"),
-    }
-    for product in products:
-        details = "".join(f'<div><dt>{html.escape(key)}</dt><dd>{html.escape(value)}</dd></div>'
-                          for key, value in product["details"].items())
-        related = "\n".join(card for item, card in zip(products, cards) if item["id"] != product["id"])
-        body = render(read_template("product.html"), ID=product["id"], NAME=html.escape(product["name"]),
-                      TYPE=html.escape(product["type"]), PRICE=money(product["price"]),
-                      DESCRIPTION=html.escape(product["description"]), DETAILS=details,
-                      COLOR=product["color"], COLOR_NAME=html.escape(product["color_name"]),
-                      MATERIAL=html.escape(product["material"]), RELATED=related)
-        pages[product["id"] + ".html"] = (
-            product["name"] + " — " + product["type"].lower() + " | СЛОЙ",
-            product["description"] + " Учебная витрина СЛОЙ.", body, True, "product")
-
-    payload: dict[str, bytes] = {}
-    for name, (title, description, content, important, section) in pages.items():
-        robots = "noindex,follow" if variant == "bad" and important else "index,follow"
-        document = render(layout, TITLE=html.escape(title), DESCRIPTION=html.escape(description, quote=True),
-                          ROBOTS=robots, CONTENT=content, VERSION=version, SECTION=section,
-                          CATALOG_CURRENT=' aria-current="page"' if section == "catalog" else "",
-                          ABOUT_CURRENT=' aria-current="page"' if section == "about" else "")
-        payload[name] = document.encode("utf-8")
-    for path in sorted((SOURCE / "assets").rglob("*")):
+    site = SITES[target]
+    values = {key: html.escape(value, quote=True) for key, value in site.items()}
+    for key in ("HEADLINE", "SUBTITLE"):
+        values[key] = "<br>".join(html.escape(part) for part in site[key].split("<br>"))
+    values.update(VERSION=VERSIONS[variant], ROBOTS="noindex,follow" if variant == "bad" else "index,follow")
+    payload = {"index.html": render((SOURCE / "index.html").read_text(encoding="utf-8"), **values).encode("utf-8"),
+               "robots.txt": b"User-agent: *\nAllow: /\n"}
+    for name in ("style.css", "landing.js", site["THEME"] + ".svg"):
+        path = SOURCE / "assets" / name
         if path.is_symlink():
             raise ValueError("source assets must not contain symlinks")
-        if path.is_file():
-            payload[path.relative_to(SOURCE).as_posix()] = path.read_bytes()
-    payload["assets/products.json"] = canonical_json(products) + b"\n"
-    payload["robots.txt"] = b"User-agent: *\nAllow: /\n"
+        payload["assets/" + name] = path.read_bytes()
     files = {name: {"sha256": hashlib.sha256(data).hexdigest(), "size": len(data)}
              for name, data in sorted(payload.items())}
-    manifest = {"schema_version": 1, "version": version, "variant": variant,
+    manifest = {"schema_version": 1, "version": VERSIONS[variant], "variant": variant,
                 "artifact_sha256": artifact_digest(files), "files": files,
-                "important_pages": [name for name, values in pages.items() if values[3]]}
-    # manifest.json binds the payload but does not hash itself. No timestamps:
-    # identical source and variant produce an identical deployable directory.
+                "important_pages": ["index.html"]}
     output.mkdir(parents=True, exist_ok=True)
     for name, data in sorted(payload.items()):
-        target = output / name
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(data)
-    # A manifest is only present once every payload file has been written.
+        path = output / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
     (output / "manifest.json").write_bytes(canonical_json(manifest) + b"\n")
     return manifest
 
@@ -120,13 +92,14 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("variant", choices=VERSIONS)
     parser.add_argument("output", type=Path)
+    parser.add_argument("--target", choices=SITES, default="unsafe")
     args = parser.parse_args()
     try:
-        manifest = build(args.variant, args.output)
+        manifest = build(args.variant, args.output, args.target)
     except (OSError, ValueError) as error:
         parser.exit(2, f"build failed: {error}\n")
-    print(json.dumps({"output": str(args.output.resolve()), "version": manifest["version"],
-                      "artifact_sha256": manifest["artifact_sha256"],
+    print(json.dumps({"output": str(args.output.resolve()), "target": args.target,
+                      "version": manifest["version"], "artifact_sha256": manifest["artifact_sha256"],
                       "file_count": len(manifest["files"])}, ensure_ascii=False))
     return 0
 

@@ -82,10 +82,18 @@ def validated_result(value, expected, action, exit_code):
     for item in raw_checks:
         require(type(item) is dict)
         path, code, passed = item.get("path"), item.get("code"), item.get("passed")
+        http_status = item.get("http_status")
+        robots_directive = item.get("robots_directive")
         require(matches(r"/(?:[a-zA-Z0-9_-]+(?:/[a-zA-Z0-9_-]+)*\.html)?", path)
                 and type(code) is str and code in CHECK_CODES and type(passed) is bool
                 and passed == (code == "pass") and path not in {row["path"] for row in checks})
-        checks.append({"path": path, "code": code, "passed": passed})
+        require(http_status is None or (type(http_status) is int and 100 <= http_status <= 599))
+        require(robots_directive is None or (type(robots_directive) is str
+                                             and robots_directive in {"noindex", "none"}))
+        require(code != "pass" or http_status == 200)
+        require(robots_directive is None or code == "unexpected_noindex")
+        checks.append({"path": path, "code": code, "passed": passed,
+                       "http_status": http_status, "robots_directive": robots_directive})
     published = value.get("published")
     if published is not None:
         published = binding(published)
@@ -93,7 +101,8 @@ def validated_result(value, expected, action, exit_code):
     url = value.get("report_url")
     require(url is None or report_url(url, candidate["run"], candidate["target"]) is not None)
     if outcome == "checked" or (outcome == "published" and candidate["target"] == "checked"):
-        require(bool(checks) and all(item["passed"] for item in checks) and not reasons and url is not None)
+        require(len(checks) == 1 and checks[0]["path"] == "/" and checks[0]["passed"]
+                and not reasons and url is not None)
     if outcome == "blocked":
         require(bool(reasons))
     if outcome == "published":
