@@ -8,7 +8,7 @@ concurrency:
   queue: max
   cancel-in-progress: false
 env:
-  DEMO_RUNTIME_SHA: 'd5efa277460d5ba8f098fd7ed506d330b1981521'
+  DEMO_RUNTIME_SHA: '4213225499f2fcc825f6be9516acd28ff0671535'
   DEMO_VARIANT: 'bad'
 jobs:
   release:

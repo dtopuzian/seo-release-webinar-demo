@@ -14,13 +14,12 @@
 <body class="theme-{{THEME}}">
   <div class="page">
     <header class="header">
-      <div class="identity"><span class="brand"><span class="brand-mark" aria-hidden="true">✳</span>{{NAME}}</span><span class="release-mode">{{MODE}}</span></div>
+      <span class="brand"><span class="brand-mark" aria-hidden="true">✳</span>{{NAME}}</span>
       <span class="version">Сайт №{{NUMBER}}<span aria-hidden="true"> / </span><span>Версия <b data-release-version>{{VERSION}}</b></span></span>
     </header>
     <main class="hero">
       <div class="hero-copy">
-        <p class="eyebrow"><span aria-hidden="true"></span>{{EYEBROW}}</p>
-        <h1>{{HEADLINE}}</h1>
+        <h1>{{HEADLINE}} <span class="ci-label">CI/CD</span></h1>
         <p class="subtitle">{{SUBTITLE}}</p>
         <button type="button" class="action" data-reaction="{{REACTION}}">{{BUTTON}}<span aria-hidden="true">↗</span></button>
         <p class="reaction" role="status" aria-live="polite" aria-atomic="true"></p>
@@ -29,7 +28,6 @@
         <span class="spark spark-one" aria-hidden="true">✳</span>
         <div class="art-halo" aria-hidden="true"></div>
         <img class="mascot" src="assets/{{THEME}}.svg" width="620" height="580" alt="{{IMAGE_ALT}}">
-        <span class="note">{{ASIDE}}</span>
         <span class="spark spark-two" aria-hidden="true">✧</span>
       </div>
     </main>
