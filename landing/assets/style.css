@@ -6,9 +6,11 @@ body { margin: 0; background: var(--bg); color: var(--ink); }
 .theme-goose { color-scheme: dark; --bg: #101e35; --ink: #faf7e8; --muted: #b8c3d5; --accent: #f3cc55; --button: #f3cc55; --button-ink: #18243a; --line: #354157; --halo: #263c60; --note: #243753; }
 .page { width: min(1440px, 100%); min-height: 100svh; margin: 0 auto; padding: 42px 5.6% 27px; display: flex; flex-direction: column; }
 .header { display: flex; gap: 24px; justify-content: space-between; align-items: center; }
+.identity { display: flex; flex-wrap: wrap; align-items: center; gap: 9px 18px; min-width: 0; }
+.release-mode { padding: 7px 10px; border: 1px solid var(--accent); border-radius: 7px; font-size: 12px; line-height: 1.4; font-weight: 650; }
 .brand { display: inline-flex; align-items: center; gap: 11px; font-size: 22px; font-weight: 750; letter-spacing: -.6px; }
 .brand-mark { color: var(--accent); font-size: 37px; line-height: 1; }
-.version { color: var(--muted); font-size: 12px; letter-spacing: .3px; display: flex; gap: 10px; }
+.version { flex-shrink: 0; color: var(--muted); font-size: 12px; letter-spacing: .3px; display: flex; gap: 10px; }
 .version b { color: var(--ink); font-weight: 700; }
 .hero { flex: 1; display: grid; grid-template-columns: 1.12fr 1fr; align-items: center; gap: 16px; padding: 58px 0 54px; }
 .hero-copy { position: relative; z-index: 1; }
@@ -25,7 +27,7 @@ h1 { font-size: clamp(35px, 4.8vw, 64px); line-height: 1.12; letter-spacing: -2.
 .hero-art { position: relative; min-width: 0; align-self: center; }
 .art-halo { position: absolute; inset: 12% 4% 10% 4%; border-radius: 49% 47% 45% 48%; background: var(--halo); transform: rotate(-12deg); }
 .mascot { display: block; width: 112%; max-width: none; height: auto; position: relative; left: -6%; }
-.note { position: absolute; right: 0; bottom: 8%; transform: rotate(-7deg); background: var(--note); color: var(--ink); box-shadow: 0 6px 20px #0000000c; border: 1px solid var(--line); font-size: 12px; font-weight: 600; padding: 13px 18px; border-radius: 8px; }
+.note { max-width: 260px; line-height: 1.4; position: absolute; right: 0; bottom: 8%; transform: rotate(-7deg); background: var(--note); color: var(--ink); box-shadow: 0 6px 20px #0000000c; border: 1px solid var(--line); font-size: 12px; font-weight: 600; padding: 13px 18px; border-radius: 8px; }
 .spark { position: absolute; color: var(--accent); z-index: 1; }
 .spark-one { font-size: 56px; right: 4%; top: -4%; transform: rotate(20deg); }
 .spark-two { font-size: 45px; left: -3%; bottom: 7%; }
@@ -42,7 +44,9 @@ h1 { font-size: clamp(35px, 4.8vw, 64px); line-height: 1.12; letter-spacing: -2.
 }
 @media (max-width: 620px) {
   .page { padding: 22px 6% 18px; }
-  .header { gap: 12px; }
+  .header { gap: 12px; align-items: flex-start; }
+  .identity { flex-direction: column; align-items: flex-start; gap: 9px; }
+  .release-mode { font-size: 11px; padding: 6px 8px; }
   .brand { font-size: 17px; gap: 7px; letter-spacing: -.5px; }
   .brand-mark { font-size: 28px; }
   .version { flex-wrap: wrap; justify-content: flex-end; font-size: 10px; gap: 3px; max-width: 78px; }
