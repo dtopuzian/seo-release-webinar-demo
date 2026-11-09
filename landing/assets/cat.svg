@@ -1,22 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 580" fill="none">
-  <title>Кот на удалёнке с ноутбуком</title>
+  <title>Грустный кот на удалёнке с ноутбуком</title>
   <g stroke="#38332B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
     <ellipse cx="323" cy="503" rx="230" ry="23" fill="#EAC391" stroke="none"/>
     <path d="M431 424c79 31 123-11 91-55-18-23-43-12-42 10" stroke="#C86130" stroke-width="34"/>
     <path d="M420 425c83 37 132-6 102-56" stroke="#38332B" stroke-width="4"/>
-    <path d="M236 269c-43 32-51 82-48 144l9 62h223l-2-108c-1-47-19-81-62-104Z" fill="#E98442"/>
+    <path d="M229 286c-39 25-47 72-41 127l9 62h223l-2-108c-1-40-24-71-67-85Z" fill="#E98442"/>
     <path d="M280 283c-24 27-36 68-30 119l116 2c1-49-11-89-34-121" fill="#FFE3AC" stroke="none"/>
-    <path d="m209 151-16-79c-1-9 7-14 15-9l72 46M348 111l64-49c8-6 16-1 14 8l-15 83" fill="#E98442"/>
-    <path d="m214 126-8-45 40 33m126 3 39-32-7 48" fill="#F5A38B" stroke="none"/>
+    <g transform="translate(0 24) rotate(4 310 210)">
+    <path d="M231 126c-20-20-48-17-59 1-9 14-10 35-1 48l50-16m158-32c21-20 47-15 59 5 8 14 8 34-2 46l-39-20" fill="#E98442"/>
+    <path d="M214 134c-17-12-30-7-32 21l30-10m191-10c16-10 28-3 28 21l-26-11" fill="#F5A38B" stroke="none"/>
     <path d="M201 136c23-35 66-47 105-42 54-6 105 18 117 63 10 35 7 76-13 103-20 29-57 44-99 45-57 0-109-19-120-60-11-37-9-78 10-109Z" fill="#EE954F"/>
     <path d="m281 99 5 27m27-31 1 26m29-23-7 25" stroke="#BB592F" stroke-width="10"/>
     <path d="M238 236c8-21 33-24 55-10 17-18 43-12 50 6 17 25-17 47-43 47-30-1-64-17-62-43Z" fill="#FFE4B2" stroke="none"/>
     <path d="m289 226 13 9 12-10Z" fill="#9D4935" stroke="#9D4935"/>
-    <path d="M302 235v13m0-1c-8 8-15 6-19 1m19-1c7 7 15 7 19 1" stroke-width="3"/>
+    <path d="M302 235v11m-19 12c8-12 28-12 38 0" stroke-width="3"/>
     <path d="m235 237-59-6m57 19-54 10m180-22 70-7m-72 20 68 9" stroke-width="3"/>
     <path d="M204 173h84v45c-23 23-69 17-79-5Zm117 0h86l-7 40c-13 21-55 22-75 4Z" fill="#EDEBD3" fill-opacity=".55" stroke-width="6"/>
     <path d="M289 184c10-6 22-6 32 0m-117-9-20-7m222 7 19-7" stroke-width="6"/>
-    <path d="M239 191v12m113-12v12" stroke-width="7"/>
+    <path d="M224 164c10 1 20-2 28-9m84 0c8 7 18 10 28 9" stroke-width="4"/>
+    <path d="M224 191c9 6 19 8 29 4m83 0c10 4 20 2 29-4" stroke-width="4"/>
+    <path d="M241 198v6m108-6v6" stroke-width="6"/>
+    </g>
     <path d="M207 321c-30 27-44 82-27 103 13 16 38 7 54-19l24-46m146-32c24 25 44 63 20 84-15 13-40 4-62-21" fill="#E98442"/>
     <path d="m212 348 15 9m-22 13 14 9m174-27 17-7" stroke="#BB592F" stroke-width="7"/>
     <path d="M115 356c-2-8 3-14 11-14h200c6 0 11 4 13 10l47 128H152Z" fill="#577267"/>
