@@ -73,6 +73,46 @@ class ClientTests(unittest.TestCase):
                                  ["demo-v1 status checked bad 12345", "demo-v1 check checked bad 12345"])
                 self.assertNotIn("PRIVATE_SSH_ERROR", text)
 
+    def test_timing_output_is_bounded_complete_ascii_lines_only(self):
+        allowed = [f"demo_check_timing phase={phase} elapsed_seconds=1.234".encode()
+                   for phase in ("check_total", "check_process", "report_publication")]
+        allowed += [f"release_check_timing stage={stage} elapsed_seconds=0.123".encode()
+                    for stage in ("collector", "total")]
+        line = allowed[0] + b"\n"
+        invalid = [b"PRIVATE_SECRET", b"https://private.example/?token=PRIVATE_SECRET",
+                   b"prefix " + allowed[0], allowed[0] + b" PRIVATE_SECRET",
+                   b"\x1b[31m" + allowed[0], allowed[0] + b"\x1b[0m",
+                   b"\xff" + allowed[0], b"\r" + allowed[0],
+                   allowed[0].replace(b"check_total", b"unknown"),
+                   allowed[0].replace(b"1.234", b"+1.234"),
+                   allowed[0].replace(b"1.234", b"1.23")]
+        cases = [(b"\n".join(allowed + invalid) + b"\n", b"\n".join(allowed) + b"\n"),
+                 (b"x" * (4096 - len(line) - 1) + b"\n" + line, line),
+                 (b"x" * (4096 - len(line)) + b"\n" + line, b""),
+                 (b"x" * 4096 + b"\n" + line, b""), (line[:-1], b""), (None, b"")]
+        for raw, expected in cases:
+            with self.subTest(length=len(raw) if raw is not None else None):
+                stdout, stderr = io.StringIO(), io.StringIO()
+                with redirect_stdout(stdout), redirect_stderr(stderr):
+                    client.emit_timings(raw)
+                self.assertEqual(stdout.getvalue(), "")
+                self.assertEqual(stderr.getvalue(), expected.decode("ascii"))
+
+    def test_check_timings_preserve_stdout_json_and_success_or_blocked_exit(self):
+        timing = b"release_check_timing stage=collector elapsed_seconds=2.345\n"
+        for outcome, exit_code in (("checked", 0), ("blocked", 10)):
+            with self.subTest(outcome=outcome):
+                response = completed(payload(outcome), exit_code)
+                response.stderr = timing + b"PRIVATE_SECRET\n"
+                stdout, stderr = io.StringIO(), io.StringIO()
+                with patch.object(client.subprocess, "run", side_effect=[completed(payload("prepared")), response]), \
+                        redirect_stdout(stdout), redirect_stderr(stderr):
+                    self.assertEqual(client.main(["check"]), exit_code)
+                result = json.loads(stdout.getvalue())
+                self.assertTrue(result["verified"])
+                self.assertEqual(result["outcome"], outcome)
+                self.assertEqual(stderr.getvalue(), timing.decode("ascii"))
+
     def test_binding_mismatches_cannot_pass(self):
         mutations = {"source_sha": "c" * 40, "run": "999", "target": "unsafe", "variant": "good",
                      "version": "v1", "digest": "f" * 64}

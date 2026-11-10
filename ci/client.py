@@ -7,9 +7,9 @@ import re
 import subprocess
 import sys
 
-HOST = "93.99.105.4"
+HOST = "194.61.9.250"
 USER = "seo-webinar-demo"
-ORIGIN = "https://shop.93-99-105-4.sslip.io:9443"
+ORIGIN = "https://shop.194-61-9-250.sslip.io:9443"
 REPOSITORY = "dtopuzian/seo-release-webinar-demo"
 RESULT_FILE = Path("demo-result.json")
 BINDING_KEYS = ("run", "target", "variant", "artifact_sha256", "version", "source_sha")
@@ -17,6 +17,18 @@ OUTCOMES = {"prepared", "checked", "blocked", "published", "error"}
 CHECK_CODES = {"pass", "unexpected_noindex", "page_not_checked", "required_http_200_complete",
                "meta_robots_unknown", "meta_robots_not_checked"}
 REASON_CODES = (CHECK_CODES - {"pass"}) | {"check_incomplete", "incomplete_check"}
+TIMING_LINE = re.compile(
+    rb"(?:demo_check_timing phase=(?:check_total|check_process|report_publication)"
+    rb"|release_check_timing stage=(?:collector|total)) elapsed_seconds=[0-9]+\.[0-9]{3}")
+
+
+def emit_timings(raw):
+    """Forward only complete, fixed-format ASCII timing lines from bounded stderr."""
+    if type(raw) is not bytes:
+        return
+    for line in raw[:4096].split(b"\n")[:-1]:
+        if TIMING_LINE.fullmatch(line):
+            print(line.decode("ascii"), file=sys.stderr, flush=True)
 
 
 def matches(pattern, value):
@@ -157,6 +169,7 @@ def main(argv=None):
         def request(action):
             remote = f"demo-v1 {action} {expected['target']} {expected['variant']} {expected['run']}"
             result = subprocess.run(command + [remote], capture_output=True, timeout=240, check=False)
+            emit_timings(result.stderr)
             require(len(result.stdout) <= 65536)
             return validated_result(json.loads(result.stdout), expected, action, result.returncode)
 
