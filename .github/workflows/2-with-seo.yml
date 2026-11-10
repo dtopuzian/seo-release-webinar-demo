@@ -10,17 +10,57 @@ concurrency:
 env:
   DEMO_RUNTIME_SHA: '4213225499f2fcc825f6be9516acd28ff0671535'
   DEMO_VARIANT: 'bad'
+  DEMO_REQUIRE_ARTIFACT_SHA256: 'true'
 jobs:
-  release:
-    name: 'Выпуск'
+  unit_tests:
+    name: 'Модульные тесты'
     if: ${{ github.repository == 'dtopuzian/seo-release-webinar-demo' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 3
     steps:
       - name: Checkout
         id: checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: 'Модульные тесты'
+        id: tests
+        run: |
+          python3 -I -B -m unittest discover -s tests -v
+  build:
+    name: 'Сборка'
+    needs: unit_tests
+    if: ${{ github.repository == 'dtopuzian/seo-release-webinar-demo' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    outputs:
+      artifact_sha256: ${{ steps.build.outputs.artifact_sha256 }}
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: 'Сборка'
+        id: build
+        run: |
+          python3 -I -B ci/stages.py build
+  seo_tests:
+    name: 'SEO-автотесты'
+    needs: build
+    if: ${{ github.repository == 'dtopuzian/seo-release-webinar-demo' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      DEMO_EXPECTED_ARTIFACT_SHA256: ${{ needs.build.outputs.artifact_sha256 }}
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
           persist-credentials: false
       - name: 'Подготовка'
         id: prepare
@@ -36,16 +76,9 @@ jobs:
           DEMO_SSH_KNOWN_HOSTS: ${{ secrets.DEMO_SSH_KNOWN_HOSTS }}
         run: |
           python3 -B ci/run.py check checked
-      - name: 'Публикация'
-        id: publish
-        env:
-          DEMO_SSH_KEY: ${{ secrets.DEMO_SSH_KEY }}
-          DEMO_SSH_KNOWN_HOSTS: ${{ secrets.DEMO_SSH_KNOWN_HOSTS }}
-        run: |
-          python3 -B ci/run.py release checked
       - name: 'Telegram'
         id: notify
-        if: ${{ !cancelled() && steps.checkout.outcome == 'success' && steps.check.outcome == 'failure' && steps.publish.outcome != 'success' }}
+        if: ${{ !cancelled() && steps.checkout.outcome == 'success' && steps.check.outcome == 'failure' }}
         env:
           DEMO_SSH_KEY: ${{ secrets.DEMO_SSH_KEY }}
           DEMO_SSH_KNOWN_HOSTS: ${{ secrets.DEMO_SSH_KNOWN_HOSTS }}
@@ -53,3 +86,28 @@ jobs:
           DEMO_TELEGRAM_CHAT: ${{ secrets.DEMO_TELEGRAM_CHAT }}
         run: |
           python3 -B ci/run.py notify checked
+  release:
+    name: 'Релиз'
+    needs: [unit_tests, build, seo_tests]
+    if: ${{ !cancelled() && github.repository == 'dtopuzian/seo-release-webinar-demo' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && needs.unit_tests.result == 'success' && needs.build.result == 'success' && (needs.seo_tests.result == 'success' || needs.seo_tests.result == 'failure') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      DEMO_EXPECTED_ARTIFACT_SHA256: ${{ needs.build.outputs.artifact_sha256 }}
+      DEMO_UNIT_RESULT: ${{ needs.unit_tests.result }}
+      DEMO_BUILD_RESULT: ${{ needs.build.result }}
+      DEMO_SEO_RESULT: ${{ needs.seo_tests.result }}
+    steps:
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: 'Проверка допуска и публикация'
+        id: publish
+        env:
+          DEMO_SSH_KEY: ${{ secrets.DEMO_SSH_KEY }}
+          DEMO_SSH_KNOWN_HOSTS: ${{ secrets.DEMO_SSH_KNOWN_HOSTS }}
+        run: |
+          python3 -I -B ci/stages.py release
