@@ -429,10 +429,16 @@ class WorkflowTests(unittest.TestCase):
         self.assertIsNotNone(match)
         return match.group(1)
 
+    def job(self, text, name):
+        match = re.search(r"^  " + re.escape(name) + r":\n(.*?)(?=^  [a-z_]+:\n|\Z)",
+                          text.split("jobs:\n", 1)[1], re.MULTILINE | re.DOTALL)
+        self.assertIsNotNone(match)
+        return match.group(1)
+
     def test_scenario_names_short_steps_and_reset_without_telegram(self):
         expected = {
             "1-without-seo.yml": ("1. Выпустить без SEO-проверки", ["Подготовка", "Публикация"]),
-            "2-with-seo.yml": ("2. Выпустить с SEO-проверкой", ["Подготовка", "SEO-проверка", "Публикация", "Telegram"]),
+            "2-with-seo.yml": ("2. Выпустить с SEO-проверкой", ["Модульные тесты", "Сборка", "Подготовка", "SEO-проверка", "Telegram", "Проверка допуска и публикация"]),
             "3-reset.yml": ("3. Вернуть обе витрины к v1", ["Подготовка", "SEO-проверка", "Публикация", "Результат"]),
         }
         for filename, (title, steps) in expected.items():
@@ -443,28 +449,98 @@ class WorkflowTests(unittest.TestCase):
             self.assertNotIn("DEMO_TELEGRAM", self.workflows[filename])
             self.assertNotIn("ci/run.py notify", self.workflows[filename])
 
-    def test_manual_workflows_share_queue_with_one_pinned_checkout_and_one_job(self):
+    def test_manual_workflows_share_queue_and_guard_each_job_with_pinned_checkout(self):
         self.assertEqual(len(self.workflows), 3)
-        for text in self.workflows.values():
+        for filename, text in self.workflows.items():
             self.assertIn("on:\n  workflow_dispatch:\n", text)
             self.assertIn("permissions:\n  contents: read\n", text)
             self.assertIn("concurrency:\n  group: webinar-demo\n  queue: max\n  cancel-in-progress: false\n", text)
             self.assertRegex(text, r"DEMO_RUNTIME_SHA: '[0-9a-f]{40}'")
             jobs = text.split("jobs:\n", 1)[1]
-            self.assertEqual(re.findall(r"^  [a-z_]+:", jobs, re.MULTILINE), ["  release:"])
-            self.assertEqual(re.findall(r"uses: (\S+)", text), ["actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"])
-            self.assertEqual(text.count("persist-credentials: false"), 1)
-            self.assertIn("github.repository == 'dtopuzian/seo-release-webinar-demo'", text)
-            self.assertIn("github.ref == format('refs/heads/{0}', github.event.repository.default_branch)", text)
+            expected = ["unit_tests", "build", "seo_tests", "release"] if filename == "2-with-seo.yml" else ["release"]
+            self.assertEqual(re.findall(r"^  ([a-z_]+):", jobs, re.MULTILINE), expected)
+            for name in expected:
+                job = self.job(text, name)
+                header = job.split("    steps:\n", 1)[0]
+                self.assertIn("github.repository == 'dtopuzian/seo-release-webinar-demo'", header)
+                self.assertIn("github.ref == format('refs/heads/{0}', github.event.repository.default_branch)", header)
+                self.assertNotIn("secrets.", header)
+                self.assertEqual(re.findall(r"uses: (\S+)", job),
+                                 ["actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1"])
+                checkout = self.step(job, "checkout")
+                self.assertIn("persist-credentials: false", checkout)
+                if filename == "2-with-seo.yml":
+                    self.assertIn("ref: ${{ github.sha }}", checkout)
             self.assertNotIn("continue-on-error", text)
             self.assertNotIn("upload-artifact", text)
-            self.assertNotIn("secrets.", text.split("    steps:\n", 1)[0])
+            self.assertNotIn("download-artifact", text)
+            self.assertNotIn("|| true", text)
+            self.assertNotIn("always()", text)
             self.assertNotIn("DEMO_TELEGRAM", self.step(text, "prepare"))
             self.assertNotIn("DEMO_TELEGRAM", self.step(text, "publish"))
 
-    def test_failed_steps_skip_publish_and_final_step_requires_checkout_without_cancellation(self):
+    def test_seo_graph_builds_once_and_passes_only_digest_to_network_jobs(self):
+        text = self.workflows["2-with-seo.yml"]
+        names = {"unit_tests": "Модульные тесты", "build": "Сборка",
+                 "seo_tests": "SEO-автотесты", "release": "Релиз"}
+        for job, name in names.items():
+            self.assertIn(f"    name: '{name}'\n", self.job(text, job))
+        unit, build = (self.job(text, name) for name in ("unit_tests", "build"))
+        self.assertNotIn("needs:", unit)
+        self.assertIn("python3 -I -B -m unittest discover -s tests -v", unit)
+        self.assertIn("    needs: unit_tests\n", build)
+        self.assertIn("artifact_sha256: ${{ steps.build.outputs.artifact_sha256 }}", build)
+        self.assertEqual(text.count("python3 -I -B ci/stages.py build"), 1)
+        for job in (unit, build):
+            self.assertNotIn("secrets.", job)
+            self.assertNotIn("ci/run.py", job)
+            self.assertNotIn("DEMO_EXPECTED_ARTIFACT_SHA256", job)
+        self.assertIn("DEMO_REQUIRE_ARTIFACT_SHA256: 'true'", text.split("jobs:\n", 1)[0])
+        for name in ("seo_tests", "release"):
+            job = self.job(text, name)
+            self.assertIn("DEMO_EXPECTED_ARTIFACT_SHA256: ${{ needs.build.outputs.artifact_sha256 }}", job)
+        self.assertIn("    needs: build\n", self.job(text, "seo_tests"))
+        self.assertEqual(re.findall(r"^    outputs:\n((?:[ ]{6}.*\n)*)", text, re.MULTILINE),
+                         ["      artifact_sha256: ${{ steps.build.outputs.artifact_sha256 }}\n"])
+        for forbidden in ("demo-result.json", "pip install", "npm install", "docker", "sleep "):
+            self.assertNotIn(forbidden, text)
+
+    def test_release_handles_seo_failure_but_never_other_failed_or_cancelled_dependencies(self):
+        text = self.workflows["2-with-seo.yml"]
+        release = self.job(text, "release")
+        self.assertIn("    needs: [unit_tests, build, seo_tests]\n", release)
+        expected_condition = (
+            "if: ${{ !cancelled() && github.repository == 'dtopuzian/seo-release-webinar-demo' "
+            "&& github.ref == format('refs/heads/{0}', github.event.repository.default_branch) "
+            "&& needs.unit_tests.result == 'success' && needs.build.result == 'success' "
+            "&& (needs.seo_tests.result == 'success' || needs.seo_tests.result == 'failure') }}")
+        self.assertIn(expected_condition, release.split("    steps:\n", 1)[0])
+        for variable, job in (("UNIT", "unit_tests"), ("BUILD", "build"), ("SEO", "seo_tests")):
+            self.assertIn("DEMO_" + variable + "_RESULT: ${{ needs." + job + ".result }}", release)
+        self.assertIn("python3 -I -B ci/stages.py release", self.step(release, "publish"))
+        # The helper performs the tested fail-closed dependency check. There is
+        # no separate unconditional publication or second notification path.
+        self.assertNotIn("ci/run.py release", text)
+        self.assertNotIn("ci/run.py notify", release)
+        self.assertNotIn("if:", self.step(release, "publish"))
+
+    def test_seo_check_runs_once_and_only_its_failure_can_notify(self):
+        seo = self.job(self.workflows["2-with-seo.yml"], "seo_tests")
+        for operation in ("prepare", "check"):
+            self.assertNotIn("if:", self.step(seo, operation))
+            self.assertNotIn("||", self.step(seo, operation))
+        self.assertEqual(seo.count("ci/run.py check checked"), 1)
+        self.assertLess(seo.index("id: prepare\n"), seo.index("id: check\n"))
+        self.assertLess(seo.index("id: check\n"), seo.index("id: notify\n"))
+        self.assertIn("if: ${{ !cancelled() && steps.checkout.outcome == 'success' && steps.check.outcome == 'failure' }}",
+                      self.step(seo, "notify"))
+        self.assertEqual(seo.count("ci/run.py notify checked"), 1)
+        self.assertNotIn("ci/run.py release", seo)
+
+    def test_other_scenarios_keep_success_steps_and_reset_status_after_failure(self):
         final_condition = "if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}"
-        for name, text in self.workflows.items():
+        for name in ("1-without-seo.yml", "3-reset.yml"):
+            text = self.workflows[name]
             # Ordinary steps retain GitHub's default success() condition. Only the
             # final status/notification runs after failure, never after checkout
             # failure or cancellation. No local Actions expression interpreter.
@@ -477,9 +553,6 @@ class WorkflowTests(unittest.TestCase):
                 self.assertLess(text.index("id: check"), text.index("id: publish"))
             if name == "3-reset.yml":
                 self.assertIn(final_condition, self.step(text, "status"))
-            elif name == "2-with-seo.yml":
-                self.assertIn("if: ${{ !cancelled() && steps.checkout.outcome == 'success' && steps.check.outcome == 'failure' && steps.publish.outcome != 'success' }}", self.step(text, "notify"))
-            self.assertNotIn("always()", text)
         self.assertNotIn("id: check\n", self.workflows["1-without-seo.yml"])
         self.assertIn("ci/run.py check unsafe", self.workflows["3-reset.yml"])
         self.assertIn("ci/run.py check checked", self.workflows["3-reset.yml"])

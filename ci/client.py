@@ -36,6 +36,14 @@ def expected_binding(environment):
             and expected["variant"] in {"good", "bad"}
             and matches(r"[0-9a-f]{40}", expected["source_sha"])
             and workflow_url(environment, expected["run"]) is not None)
+    # Workflow2 binds the independently built candidate across jobs. Workflows
+    # 1/3 retain their server-only path, but an empty supplied digest never opts out.
+    required = environment.get("DEMO_REQUIRE_ARTIFACT_SHA256")
+    require("DEMO_REQUIRE_ARTIFACT_SHA256" not in environment or required == "true")
+    if required == "true" or "DEMO_EXPECTED_ARTIFACT_SHA256" in environment:
+        digest = environment.get("DEMO_EXPECTED_ARTIFACT_SHA256")
+        require(matches(r"[0-9a-f]{64}", digest))
+        expected["artifact_sha256"] = digest
     return expected
 
 
