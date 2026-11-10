@@ -4,8 +4,8 @@
 Сайт выглядит исправным и кнопка работает, но `meta robots noindex` запрещает
 индексацию. Внешний вид v1 и v2 одинаков, меняется только индикатор версии.
 
-- [Сайт №1: Кот на удалёнке](https://shop.93-99-105-4.sslip.io:9443/)
-- [Сайт №2: Гусь на связи](https://shop.93-99-105-4.sslip.io:9443/checked/)
+- [Сайт №1: Кот на удалёнке](https://shop.194-61-9-250.sslip.io:9443/)
+- [Сайт №2: Гусь на связи](https://shop.194-61-9-250.sslip.io:9443/checked/)
 - [Три запуска в Actions](https://github.com/dtopuzian/seo-release-webinar-demo/actions)
 - [Бот SEO Checker](https://t.me/seo_release_checker_bot)
 

@@ -7,9 +7,9 @@ import re
 import subprocess
 import sys
 
-HOST = "93.99.105.4"
+HOST = "194.61.9.250"
 USER = "seo-webinar-demo"
-ORIGIN = "https://shop.93-99-105-4.sslip.io:9443"
+ORIGIN = "https://shop.194-61-9-250.sslip.io:9443"
 REPOSITORY = "dtopuzian/seo-release-webinar-demo"
 RESULT_FILE = Path("demo-result.json")
 BINDING_KEYS = ("run", "target", "variant", "artifact_sha256", "version", "source_sha")
