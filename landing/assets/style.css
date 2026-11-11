@@ -2,59 +2,64 @@
 :root { font-family: "Segoe UI", Arial, sans-serif; font-synthesis: none; text-rendering: optimizeLegibility; }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink); }
-.theme-cat { color-scheme: light; --bg: #fcf4e7; --ink: #29271f; --muted: #6e675b; --accent: #e96b36; --button: #b94014; --button-ink: #fff9ec; --line: #e6dbca; --halo: #f8d8a8; }
-.theme-goose { color-scheme: dark; --bg: #101e35; --ink: #faf7e8; --muted: #b8c3d5; --accent: #f3cc55; --button: #f3cc55; --button-ink: #18243a; --line: #354157; --halo: #263c60; }
-.page { width: min(1440px, 100%); min-height: 100svh; margin: 0 auto; padding: 42px 5.6% 27px; display: flex; flex-direction: column; }
+.theme-unsafe { color-scheme: light; --bg: #fcf4e7; --ink: #29271f; --muted: #6e675b; --accent: #e96b36; --button: #b94014; --button-ink: #fff9ec; --line: #e6dbca; --halo: #f8d8a8; }
+.theme-checked { color-scheme: dark; --bg: #101e35; --ink: #faf7e8; --muted: #b8c3d5; --accent: #f3cc55; --button: #f3cc55; --button-ink: #18243a; --line: #354157; --halo: #263c60; }
+.page { width: min(1440px, 100%); min-height: 100svh; margin: 0 auto; padding: 36px 5.6% 26px; display: flex; flex-direction: column; }
 .header { display: flex; gap: 24px; justify-content: space-between; align-items: center; }
 .brand { display: inline-flex; align-items: center; gap: 11px; font-size: 22px; font-weight: 750; letter-spacing: -.6px; }
 .brand-mark { color: var(--accent); font-size: 37px; line-height: 1; }
-.version { flex-shrink: 0; color: var(--muted); font-size: 12px; letter-spacing: .3px; display: flex; gap: 10px; }
+.version { flex-shrink: 0; color: var(--muted); font-size: 12px; letter-spacing: .3px; display: flex; gap: 10px; border: 1px solid var(--line); border-radius: 100px; padding: 11px 17px; }
 .version b { color: var(--ink); font-weight: 700; }
-.hero { flex: 1; display: grid; grid-template-columns: 1.12fr 1fr; align-items: center; gap: 16px; padding: 58px 0 54px; }
+.hero { flex: 1; display: grid; grid-template-columns: 1.08fr 1fr; align-items: center; gap: 24px; padding: 48px 0 38px; }
 .hero-copy { position: relative; z-index: 1; }
-h1 { font-size: clamp(52px, 4.8vw, 64px); line-height: 1.12; letter-spacing: -2.8px; margin: 0 0 22px; font-weight: 760; }
+.eyebrow { color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; margin: 0 0 24px; }
+h1 { font-size: clamp(48px, 4.8vw, 65px); line-height: 1.09; letter-spacing: -2.8px; margin: 0 0 28px; font-weight: 760; }
 .ci-label { white-space: nowrap; }
-.subtitle { color: var(--ink); font-size: 26px; line-height: 1.35; font-weight: 500; margin: 0 0 33px; }
-.action { display: inline-flex; align-items: center; justify-content: space-between; gap: 35px; border: 0; border-radius: 11px; padding: 19px 24px; background: var(--button); color: var(--button-ink); font: 700 15px/1.2 "Segoe UI", Arial, sans-serif; cursor: pointer; transition: transform .18s, filter .18s; }
+.subtitle { color: var(--ink); font-size: clamp(25px, 2.5vw, 34px); line-height: 1.25; font-weight: 600; letter-spacing: -.8px; margin: 0 0 32px; padding-left: 19px; border-left: 4px solid var(--accent); }
+.action { display: inline-flex; align-items: center; justify-content: space-between; gap: 40px; border: 0; border-radius: 12px; padding: 19px 24px; background: var(--button); color: var(--button-ink); font: 700 15px/1.2 "Segoe UI", Arial, sans-serif; cursor: pointer; transition: transform .18s, filter .18s; }
 .action span { font-size: 23px; line-height: .8; font-weight: 400; }
 .action:hover { transform: translateY(-2px); filter: brightness(1.08); }
 .action:active { transform: translateY(1px); }
 .action:focus-visible { outline: 3px solid var(--ink); outline-offset: 5px; }
-.reaction { min-height: 44px; max-width: 360px; margin: 17px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
-.hero-art { position: relative; min-width: 0; align-self: center; }
-.art-halo { position: absolute; inset: 12% 4% 10% 4%; border-radius: 49% 47% 45% 48%; background: var(--halo); transform: rotate(-12deg); }
-.mascot { display: block; width: 112%; max-width: none; height: auto; position: relative; left: -6%; }
+.reaction { min-height: 42px; max-width: 360px; margin: 15px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.hero-art { position: relative; min-width: 0; width: 100%; max-width: 560px; justify-self: center; align-self: center; isolation: isolate; }
+.art-halo { position: absolute; inset: 12% 1% 5%; border-radius: 48% 46% 44% 48%; background: var(--halo); transform: rotate(-10deg); z-index: -1; }
+.art-halo::after { content: ""; position: absolute; inset: -14px 14px 14px -14px; border: 1px solid var(--line); border-radius: inherit; transform: rotate(18deg); }
+.mascot { display: block; width: 100%; height: auto; position: relative; object-fit: contain; }
 .spark { position: absolute; color: var(--accent); z-index: 1; }
-.spark-one { font-size: 56px; right: 4%; top: -4%; transform: rotate(20deg); }
-.spark-two { font-size: 45px; left: -3%; bottom: 7%; }
-.footer { display: flex; justify-content: space-between; gap: 15px; border-top: 1px solid var(--line); padding-top: 22px; color: var(--muted); font-size: 11px; }
+.spark-one { font-size: 56px; right: 4%; top: 3%; transform: rotate(20deg); }
+.spark-two { font-size: 45px; left: 0; bottom: 10%; }
+.footer { display: flex; justify-content: space-between; gap: 15px; border-top: 1px solid var(--line); padding-top: 20px; color: var(--muted); font-size: 11px; }
 .footer span > span { margin-left: 10px; color: var(--accent); font-size: 16px; }
-@media (min-width: 1500px) { .page { padding-top: 52px; } }
+@media (min-width: 1500px) { .page { padding-top: 45px; } }
 @media (max-width: 850px) {
   .page { padding: 25px 6% 22px; }
-  .hero { grid-template-columns: 1fr 1fr; gap: 0; padding: 70px 0 60px; }
+  .hero { grid-template-columns: 1.08fr 1fr; gap: 8px; padding: 56px 0 44px; }
   h1 { font-size: 39px; letter-spacing: -1.7px; }
   .brand { font-size: 19px; }
-  .subtitle { font-size: 24px; }
+  .subtitle { font-size: 25px; }
+  .eyebrow { font-size: 10px; letter-spacing: 1.2px; }
+  .version { font-size: 11px; padding: 9px 13px; }
 }
 @media (max-width: 620px) {
-  .page { padding: 22px 6% 18px; }
-  .header { gap: 12px; align-items: flex-start; }
+  .page { padding: 20px 6% 16px; }
+  .header { gap: 12px; align-items: center; }
   .brand { font-size: 17px; gap: 7px; letter-spacing: -.5px; }
   .brand-mark { font-size: 28px; }
-  .version { flex-wrap: wrap; justify-content: flex-end; font-size: 10px; gap: 3px; max-width: 78px; }
+  .version { flex-wrap: wrap; justify-content: center; font-size: 10px; gap: 3px; max-width: 85px; border-radius: 12px; padding: 7px 9px; }
   .version > span[aria-hidden] { display: none; }
-  .hero { display: flex; flex-direction: column; align-items: stretch; padding: 36px 0 24px; }
-  h1 { font-size: clamp(32px, 9vw, 40px); letter-spacing: -1.6px; margin-bottom: 18px; }
-  .subtitle { font-size: clamp(20px, 5.5vw, 22px); margin-bottom: 23px; }
-  .action { font-size: 14px; padding: 17px 21px; }
-  .reaction { min-height: 38px; margin-top: 12px; font-size: 12px; }
-  .hero-art { width: min(90%, 340px); margin: -6px auto 0; }
-  .mascot { width: 100%; left: 0; }
-  .spark-one { font-size: 37px; top: 0; right: -2%; }
-  .spark-two { font-size: 30px; left: 1%; }
-  .footer { font-size: 10px; padding-top: 15px; }
-  .footer > span { max-width: 46%; }
+  .hero { display: flex; flex-direction: column; align-items: stretch; padding: 30px 0 16px; }
+  .eyebrow { margin-bottom: 14px; font-size: 9px; letter-spacing: 1.2px; }
+  h1 { font-size: clamp(32px, 9vw, 40px); letter-spacing: -1.6px; margin-bottom: 19px; }
+  .subtitle { font-size: clamp(22px, 6vw, 25px); letter-spacing: -.5px; margin-bottom: 22px; padding-left: 13px; border-left-width: 3px; }
+  .action { font-size: 14px; padding: 16px 21px; }
+  .reaction { min-height: 36px; margin-top: 11px; font-size: 12px; }
+  .hero-art { width: min(79%, 270px); margin: -4px auto 0; }
+  .spark-one { font-size: 34px; top: 3%; right: -2%; }
+  .spark-two { font-size: 29px; left: -2%; }
+  .art-halo::after { inset: -9px 9px 9px -9px; }
+  .footer { font-size: 10px; padding-top: 14px; }
+  .footer > span { max-width: 55%; }
   .footer > span:last-child { text-align: right; }
 }
 @media (prefers-reduced-motion: reduce) { .action { transition: none; } }

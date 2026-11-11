@@ -7,18 +7,19 @@
   <meta name="description" content="{{DESCRIPTION}}">
   <meta name="robots" content="{{ROBOTS}}">
   <meta name="color-scheme" content="light dark">
-  <link rel="icon" type="image/svg+xml" href="assets/{{THEME}}.svg">
+  <link rel="icon" type="image/png" href="assets/{{IMAGE}}">
   <link rel="stylesheet" href="assets/style.css">
   <script src="assets/landing.js" defer></script>
 </head>
 <body class="theme-{{THEME}}">
   <div class="page">
     <header class="header">
-      <span class="brand"><span class="brand-mark" aria-hidden="true">✳</span>{{NAME}}</span>
+      <span class="brand"><span class="brand-mark" aria-hidden="true">✳</span>SEO Checker</span>
       <span class="version">Сайт №{{NUMBER}}<span aria-hidden="true"> / </span><span>Версия <b data-release-version>{{VERSION}}</b></span></span>
     </header>
     <main class="hero">
       <div class="hero-copy">
+        <p class="eyebrow">Один релиз. Два подхода.</p>
         <h1>{{HEADLINE}} <span class="ci-label">CI/CD</span></h1>
         <p class="subtitle">{{SUBTITLE}}</p>
         <button type="button" class="action" data-reaction="{{REACTION}}">{{BUTTON}}<span aria-hidden="true">↗</span></button>
@@ -27,11 +28,11 @@
       <div class="hero-art">
         <span class="spark spark-one" aria-hidden="true">✳</span>
         <div class="art-halo" aria-hidden="true"></div>
-        <img class="mascot" src="assets/{{THEME}}.svg" width="620" height="580" alt="{{IMAGE_ALT}}">
+        <img class="mascot" src="assets/{{IMAGE}}" width="1024" height="1024" alt="{{IMAGE_ALT}}">
         <span class="spark spark-two" aria-hidden="true">✧</span>
       </div>
     </main>
-    <footer class="footer"><span>{{FOOTNOTE}}</span><span>Меньше суеты. Больше смысла. <span aria-hidden="true">↗</span></span></footer>
+    <footer class="footer"><span>{{FOOTNOTE}}</span><span>Демо SEO-проверок <span aria-hidden="true">↗</span></span></footer>
   </div>
 </body>
 </html>

@@ -20,7 +20,7 @@ def built_digest(folder):
                    and manifest.get("version") == "v2" and manifest.get("variant") == "bad"
                    and manifest.get("important_pages") == ["index.html"])
     expected_files = {"index.html", "robots.txt", "assets/style.css",
-                      "assets/landing.js", "assets/goose.svg"}
+                      "assets/landing.js", "assets/cartman.png"}
     files = {}
     for path in folder.rglob("*"):
         client.require(not path.is_symlink())

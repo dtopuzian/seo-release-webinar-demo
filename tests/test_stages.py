@@ -55,7 +55,7 @@ class StageTests(unittest.TestCase):
             self.assertEqual(manifest["variant"], "bad")
             self.assertEqual(manifest["version"], "v2")
             self.assertEqual(set(manifest["files"]),
-                             {"index.html", "robots.txt", "assets/style.css", "assets/landing.js", "assets/goose.svg"})
+                             {"index.html", "robots.txt", "assets/style.css", "assets/landing.js", "assets/cartman.png"})
             manifests.append(manifest)
             return result
         with patch.object(stages.subprocess, "run", side_effect=inspect) as build, \
@@ -83,7 +83,7 @@ class StageTests(unittest.TestCase):
                     elif corruption == "bytes":
                         (output / "index.html").write_text("different candidate", encoding="utf-8")
                     elif corruption == "missing":
-                        (output / "assets/goose.svg").unlink()
+                        (output / "assets/cartman.png").unlink()
                     elif corruption == "extra":
                         (output / "extra.html").write_text("unbound page", encoding="utf-8")
                     else:

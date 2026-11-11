@@ -99,14 +99,20 @@ class LandingArtifactTests(unittest.TestCase):
 
     def test_single_page_local_assets_at_both_mounts_and_distinct_sites(self):
         documents, digests = [], []
-        for target, brand in (("unsafe", "Кот на удалёнке"), ("checked", "Гусь на связи")):
+        for target, subtitle, image in (
+            ("unsafe", "Это плохо, понятненько?", "mackey.png"),
+            ("checked", "Щикарно", "cartman.png"),
+        ):
             output = self.root / target
             manifest = BUILDER.build("good", output, target)
             names = set(manifest["files"])
             self.assertEqual({name for name in names if name.endswith(".html")}, {"index.html"})
             text = (output / "index.html").read_text(encoding="utf-8")
             document = Document(text)
-            self.assertIn(brand, text)
+            self.assertIn("SEO Checker", text)
+            self.assertIn(f'<p class="subtitle">{subtitle}</p>', text)
+            self.assertIn(f"assets/{image}", names)
+            self.assertNotRegex(text, r"Кот на удалёнке|Гусь на связи|Позвать на созвон|Связаться с гусём")
             self.assertEqual(document.h1_count, 1)
             self.assertEqual(document.button_count, 1)
             self.assertTrue(document.title.strip())
@@ -123,7 +129,7 @@ class LandingArtifactTests(unittest.TestCase):
                     self.assertEqual(resolved.netloc, "shop.example")
                     self.assertTrue(resolved.path.startswith(mount), reference)
                     self.assertIn(resolved.path[len(mount):], names, reference)
-            self.assertFalse(any("cart" in name or "product" in name or "catalog" in name for name in names))
+            self.assertFalse({"cart.html", "product.html", "catalog.html"} & names)
             documents.append(text)
             digests.append(manifest["artifact_sha256"])
         self.assertNotEqual(*documents)

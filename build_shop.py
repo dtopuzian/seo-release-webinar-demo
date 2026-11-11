@@ -16,24 +16,24 @@ SOURCE = Path(__file__).resolve().parent / "landing"
 VERSIONS = {"good": "v1", "bad": "v2"}
 SITES = {
     "unsafe": {
-        "NUMBER": "01", "THEME": "cat", "NAME": "Кот на удалёнке",
-        "TITLE": "Кот на удалёнке — работаем лапками",
-        "DESCRIPTION": "Дедлайны подождут. Кот на удалёнке помогает сделать паузу, выдохнуть и вернуться к работе с мурчащим настроением.",
+        "NUMBER": "01", "THEME": "unsafe", "IMAGE": "mackey.png",
+        "TITLE": "Без SEO-автотестов в CI/CD",
+        "DESCRIPTION": "Без SEO-автотестов в CI/CD. Это плохо, понятненько? Демонстрация незаметной ошибки при выпуске сайта.",
         "HEADLINE": "Без SEO-автотестов в",
-        "SUBTITLE": "Надеюсь, ничего не сломалось…",
-        "BUTTON": "Позвать на созвон", "REACTION": "Мяу. Кот уже на созвоне. Камеру не включит.",
-        "FOOTNOTE": "Всё под контролем. Особенно клавиатура.",
-        "IMAGE_ALT": "Грустный рыжий кот с опущенными ушами и понурым взглядом сутулится за ноутбуком",
+        "SUBTITLE": "Это плохо, понятненько?",
+        "BUTTON": "Понятненько", "REACTION": "Надеяться на удачу можно. Но автотесты надёжнее.",
+        "FOOTNOTE": "Надеяться хорошо. Проверять лучше.",
+        "IMAGE_ALT": "Мистер Мэки в очках и зелёной рубашке объясняет, почему выпускать без автотестов плохо",
     },
     "checked": {
-        "NUMBER": "02", "THEME": "goose", "NAME": "Гусь на связи",
-        "TITLE": "Гусь на связи — слышно отлично, понятно не всё",
-        "DESCRIPTION": "Гусь на связи принимает важные звонки, поддерживает боевой настрой команды и всегда готов сказать уверенное га-га.",
+        "NUMBER": "02", "THEME": "checked", "IMAGE": "cartman.png",
+        "TITLE": "С SEO-автотестами в CI/CD",
+        "DESCRIPTION": "С SEO-автотестами в CI/CD. Щикарно! Демонстрация проверки сайта до публикации новой версии.",
         "HEADLINE": "С SEO-автотестами в",
-        "SUBTITLE": "Сначала проверим. Потом выпустим!",
-        "BUTTON": "Связаться с гусём", "REACTION": "Га-га! Ваш вопрос очень важен для нашего гуся.",
-        "FOOTNOTE": "Ни один созвон не останется без внимания.",
-        "IMAGE_ALT": "Весёлый белый гусь в жёлтой гарнитуре улыбается, подняв голову и расправив крылья",
+        "SUBTITLE": "Щикарно",
+        "BUTTON": "Вот это подход", "REACTION": "Ошибку поймали до релиза. Щикарно!",
+        "FOOTNOTE": "Сначала проверяем. Потом выпускаем.",
+        "IMAGE_ALT": "Довольный Эрик Картман в красной куртке и бирюзовой шапке с жёлтым помпоном",
     },
 }
 
@@ -67,7 +67,7 @@ def build(variant: str, output: Path, target: str = "unsafe") -> dict:
     values.update(VERSION=VERSIONS[variant], ROBOTS="noindex,follow" if variant == "bad" else "index,follow")
     payload = {"index.html": render((SOURCE / "index.html").read_text(encoding="utf-8"), **values).encode("utf-8"),
                "robots.txt": b"User-agent: *\nAllow: /\n"}
-    for name in ("style.css", "landing.js", site["THEME"] + ".svg"):
+    for name in ("style.css", "landing.js", site["IMAGE"]):
         path = SOURCE / "assets" / name
         if path.is_symlink():
             raise ValueError("source assets must not contain symlinks")
